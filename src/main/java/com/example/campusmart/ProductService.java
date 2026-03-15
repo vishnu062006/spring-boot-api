@@ -1,33 +1,32 @@
 package com.example.campusmart;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Spring Bean - manages all product business logic
+ * Spring Bean - manages all product business logic using JPA
  */
 @Service
 public class ProductService {
 
-    private List<Product> products = new ArrayList<>();
-    private int nextId = 1;
+    @Autowired
+    private ProductRepository productRepository;
 
     /**
      * Create a new product
      */
-    public Product addProduct(String name, double price) {
+    public Product addProduct(String name, Double price) {
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Name cannot be empty");
         }
         if (price < 0) {
             throw new IllegalArgumentException("Price must be positive");
         }
-        Product product = new Product(nextId++, name, price);
-        products.add(product);
+        Product product = new Product(null, name, price);
         System.out.println("[INFO] Product added: " + name);
-        return product;
+        return productRepository.save(product);
     }
 
     /**
@@ -35,7 +34,7 @@ public class ProductService {
      */
     public List<Product> getAllProducts() {
         System.out.println("[INFO] Fetching all products");
-        return products;
+        return productRepository.findAll();
     }
 
     /**
@@ -43,19 +42,18 @@ public class ProductService {
      */
     public Optional<Product> getProductById(int id) {
         System.out.println("[INFO] Fetching product ID: " + id);
-        return products.stream()
-                .filter(p -> p.getId().equals(id))
-                .findFirst();
+        return productRepository.findById(id);
     }
 
     /**
      * Update entire product - PUT
      */
-    public Optional<Product> updateProduct(int id, String name, double price) {
-        Optional<Product> found = getProductById(id);
+    public Optional<Product> updateProduct(int id, String name, Double price) {
+        Optional<Product> found = productRepository.findById(id);
         found.ifPresent(p -> {
             p.setName(name);
             p.setPrice(price);
+            productRepository.save(p);
             System.out.println("[INFO] Product updated: " + id);
         });
         return found;
@@ -64,10 +62,11 @@ public class ProductService {
     /**
      * Update price only - PATCH
      */
-    public Optional<Product> patchProduct(int id, double price) {
-        Optional<Product> found = getProductById(id);
+    public Optional<Product> patchProduct(int id, Double price) {
+        Optional<Product> found = productRepository.findById(id);
         found.ifPresent(p -> {
             p.setPrice(price);
+            productRepository.save(p);
             System.out.println("[INFO] Product price patched: " + id);
         });
         return found;
@@ -77,9 +76,12 @@ public class ProductService {
      * Delete product
      */
     public boolean deleteProduct(int id) {
-        boolean removed = products.removeIf(p -> p.getId().equals(id));
-        if (removed) System.out.println("[INFO] Product deleted: " + id);
-        else System.out.println("[WARN] Product not found: " + id);
-        return removed;
+        if (productRepository.existsById(id)) {
+            productRepository.deleteById(id);
+            System.out.println("[INFO] Product deleted: " + id);
+            return true;
+        }
+        System.out.println("[WARN] Product not found: " + id);
+        return false;
     }
 }
